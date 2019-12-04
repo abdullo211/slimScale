@@ -16,6 +16,8 @@ class MainActivity : AppCompatActivity() {
         startBtn.setOnClickListener { slimScale.start() }
         stopBtn.setOnClickListener { slimScale.stop() }
         clearBtn.setOnClickListener { slimScale.clear() }
+        setTareBtn.setOnClickListener { slimScale.setTare() }
+        setZeroBtn.setOnClickListener { slimScale.setZero() }
     }
 
     private fun init() {

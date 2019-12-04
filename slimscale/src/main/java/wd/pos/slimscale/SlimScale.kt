@@ -28,16 +28,27 @@ class SlimScale(private val context: Context) : IScale {
         private const val SHTRIH_M_DEVICE_ID = 8137
         private const val TIMER_NAME = "weight_timer"
         private val GET_WEIGHT_CODE = byteArrayOf(0X02, 0X05, 0X3A, 0X30, 0X30, 0X33, 0X30, 0X3C)
+        private val SET_TARE_CODE = byteArrayOf(0X02, 0X05, 0X31, 0X30, 0X30, 0X33, 0X30, 0X37)
+        private val SET_ZERO_CODE = byteArrayOf(0X02, 0X05, 0X30, 0X30, 0X30, 0X33, 0X30, 0X36)
+        //02 05 30 30 30 33 30 36
     }
 
-    val isUsbConnected get() = serial?.isOpen ?: false
+    override val isUsbConnected get() = serial?.isOpen ?: false
 
     override fun onWeightChange(scaleChanged: (weight: Double) -> Unit) {
         this.onWeightChange = scaleChanged
     }
 
     override fun setTare() {
+        if (!isUsbConnected)
+            connectUsb()
+        serial?.write(SET_TARE_CODE)
+    }
 
+    override fun setZero() {
+        if (!isUsbConnected)
+            connectUsb()
+        serial?.write(SET_ZERO_CODE)
     }
 
     override fun clear() {
@@ -67,9 +78,7 @@ class SlimScale(private val context: Context) : IScale {
 
             if (UsbManager.ACTION_USB_DEVICE_DETACHED == intent.action) {
                 val device: UsbDevice? = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                device?.apply {
-
-                }
+                device?.apply { }
             }
         }
     }
@@ -91,15 +100,10 @@ class SlimScale(private val context: Context) : IScale {
     }
 
     private fun onDataReceived(bytes: ByteArray) {
-        if (bytes.size < 12) return
-
-        when (abs(bytes[1].toInt())) {
-            11 -> onWeight(bytes)
-        }
-        Log.d(
-            "content",
-            bytes.map { arr -> (arr * 255).toByte() }.toByteArray().contentToString()
-        )
+        if (bytes.size >= 12)
+            when (abs(bytes[1].toInt())) {
+                11 -> onWeight(bytes)
+            }
     }
 
     private fun openSerialPort(serial: UsbSerialDevice): Boolean {
