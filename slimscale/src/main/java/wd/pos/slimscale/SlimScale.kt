@@ -17,7 +17,7 @@ import kotlin.math.abs
 
 class SlimScale(private val context: Context) : IScale {
 
-    private lateinit var timer: Timer
+    private var timer: Timer? = null
     private var serial: UsbSerialDevice? = null
     override var updateMillis: Long = 3000
     private var onWeightChange: ((Double) -> Unit)? = null
@@ -30,10 +30,14 @@ class SlimScale(private val context: Context) : IScale {
         private val GET_WEIGHT_CODE = byteArrayOf(0X02, 0X05, 0X3A, 0X30, 0X30, 0X33, 0X30, 0X3C)
     }
 
-    private val isUsbConnected get() = serial?.isOpen ?: false
+    val isUsbConnected get() = serial?.isOpen ?: false
 
     override fun onWeightChange(scaleChanged: (weight: Double) -> Unit) {
         this.onWeightChange = scaleChanged
+    }
+
+    override fun setTare() {
+
     }
 
     override fun clear() {
@@ -48,7 +52,7 @@ class SlimScale(private val context: Context) : IScale {
     }
 
     override fun stop() {
-        timer.cancel()
+        timer?.cancel()
         onWeightChange?.invoke(-1.0)
     }
 
@@ -113,17 +117,20 @@ class SlimScale(private val context: Context) : IScale {
     private fun onWeight(bytes: ByteArray) {
         val first = bytes[6].toInt()
         val second = bytes[7].toInt()
-        val third = bytes[8].toInt()
-        val four = bytes[9].toInt()
+        val pow = when {
+            first == 0 -> second
+            first > 0 -> second
+            else -> second + 1
+        }
         val weight: Double =
-            (four * 256 * 256 + third * 256 * 256 + second * 256 + first).toDouble() / 1000
+            (first + 256 * pow).toDouble() / 1000
         if (lastWeight != weight) {
             lastWeight = weight
             onWeightChange?.invoke(lastWeight)
         }
     }
 
-    fun checkDevicePermission(manager: UsbManager, usbDevice: UsbDevice): Boolean {
+    private fun checkDevicePermission(manager: UsbManager, usbDevice: UsbDevice): Boolean {
         if (manager.hasPermission(usbDevice)) return true
         val permissionIntent =
             PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), 0)
